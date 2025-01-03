@@ -36,7 +36,7 @@ export default async function handler(
       
       // Parse the JSON body from the request
       const data = req.body;
-      console.log('Connected to data', data);
+      console.log('data', data);
 
       // Add timestamp to the data
       const documentToInsert = {
