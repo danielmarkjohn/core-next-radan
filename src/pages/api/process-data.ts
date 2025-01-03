@@ -2,18 +2,19 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { MongoClient } from 'mongodb'
 
-// MongoDB Connection URL - typically stored in environment variables
-const uri = process.env.MONGODB_URI || 'mongodb+srv://admin:Admin@2025@core-next.cbjdj.mongodb.net/?retryWrites=true&w=majority&appName=core-next'
+// Ensure the connection URI is correctly parsed
+const uri = process.env.MONGODB_URI || 'mongodb+srv://admin:xbzE8wSLaXOFaBrb@core-next.cbjdj.mongodb.net/?retryWrites=true&w=majority&appName=core-next'
 const dbName = process.env.MONGODB_DBNAME || 'health-metrics'
 
 async function connectToDatabase() {
-  const client = new MongoClient(uri);
-  
-  try {
-    await client.connect();
-    console.log('Connected to MongoDB');
-    console.log('Connected to MongoDB', uri, dbName);
+  if (!uri) {
+    throw new Error('MongoDB URI is not defined in environment variables');
+  }
 
+  try {
+    const client = new MongoClient(uri);
+    await client.connect();
+    console.log('Connected to MongoDB successfully');
     return client.db(dbName);
   } catch (error) {
     console.error('Failed to connect to MongoDB', error);
@@ -32,18 +33,23 @@ export default async function handler(
       const db = await connectToDatabase();
       
       // Get the collection (will create if not exists)
-      const collection = db.collection('health-metrics-collection');
+      const collection = db.collection('processedData');
       
       // Parse the JSON body from the request
       const data = req.body;
-      console.log('data', data);
+
+      // Validate incoming data
+      if (!data || Object.keys(data).length === 0) {
+        return res.status(400).json({ 
+          message: 'No data provided' 
+        });
+      }
 
       // Add timestamp to the data
       const documentToInsert = {
         ...data,
         createdAt: new Date()
       };
-      console.log('documentToInsert', documentToInsert);
 
       // Insert the data into MongoDB
       const result = await collection.insertOne(documentToInsert);
@@ -56,9 +62,16 @@ export default async function handler(
     } catch (error) {
       // Handle any errors in processing
       console.error('Error processing data:', error);
+      
+      // More detailed error response
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Unknown error occurred';
+      
       res.status(500).json({ 
         message: 'Error processing data', 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+        error: errorMessage,
+        details: error instanceof Error ? error.stack : undefined
       });
     }
   } else {
